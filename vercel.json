@@ -1,8 +1,15 @@
 {
-  "version": 3,
-  "functions": {
-    "api/execute.py": {
-      "runtime": "python3.11"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/execute.py",
+      "use": "@vercel/python"
     }
-  }
+  ],
+  "routes": [
+    {
+      "src": "/api/execute",
+      "dest": "api/execute.py"
+    }
+  ]
 }
