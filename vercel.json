@@ -1,15 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/execute.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/execute",
-      "dest": "api/execute.py"
-    }
-  ]
+  "builds": [{ "src": "main.py", "use": "@vercel/python" }],
+  "routes": [{ "src": "/(.*)", "dest": "main.py" }]
 }
