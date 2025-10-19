@@ -14,7 +14,7 @@ app.add_middleware(
 )
 
 def normalize_department(raw_dept: str) -> str:
-    """Normalize department name (e.g., 'it' -> 'IT', 'facilities' -> 'Facilities')."""
+    """Normalize department name."""
     raw = raw_dept.strip()
     if len(raw) <= 3 and raw.isalpha():
         return raw.upper()
@@ -22,26 +22,37 @@ def normalize_department(raw_dept: str) -> str:
 
 @app.get("/execute")
 def execute(q: str = Query(..., description="Query text from employee")):
+    if not q:
+        return {"error": "Missing query parameter 'q'."}
+
     q_original = q.strip()
     q_lower = q_original.lower()
 
     # 1️⃣ Ticket Status
-    match = re.search(r"status of ticket (\d+)", q_lower)
-    if match:
-        ticket_id = int(match.group(1))
+    ticket_match = re.search(r"status of ticket (\d+)", q_lower)
+    if ticket_match:
+        ticket_id = int(ticket_match.group(1))
         return {
             "name": "get_ticket_status",
             "arguments": json.dumps({"ticket_id": ticket_id})
         }
 
     # 2️⃣ Meeting Scheduling
-    match = re.search(r"schedule a meeting on (\d{4}-\d{2}-\d{2}) at ([0-9:]+) in (.+)", q_lower)
-    if match:
-        date = match.group(1)
-        time = match.group(2)
-        # Extract exact case from original string
-        room_match = re.search(r"schedule a meeting on \d{4}-\d{2}-\d{2} at [0-9:]+ in (.+)", q_original, flags=re.IGNORECASE)
-        meeting_room = room_match.group(1).strip().rstrip(".") if room_match else match.group(3).strip().rstrip(".")
+    meeting_match = re.search(
+        r"schedule a meeting on (\d{4}-\d{2}-\d{2}) at ([0-9:]+) in (.+)", q_lower
+    )
+    if meeting_match:
+        date = meeting_match.group(1)
+        time = meeting_match.group(2)
+
+        # extract exact case-sensitive meeting room from original query
+        room_match = re.search(
+            r"schedule a meeting on \d{4}-\d{2}-\d{2} at [0-9:]+ in (.+)",
+            q_original,
+            flags=re.IGNORECASE,
+        )
+        meeting_room = room_match.group(1).strip().rstrip(".") if room_match else meeting_match.group(3).strip().rstrip(".")
+
         return {
             "name": "schedule_meeting",
             "arguments": json.dumps({
@@ -52,19 +63,19 @@ def execute(q: str = Query(..., description="Query text from employee")):
         }
 
     # 3️⃣ Expense Balance
-    match = re.search(r"expense balance for employee (\d+)", q_lower)
-    if match:
-        employee_id = int(match.group(1))
+    expense_match = re.search(r"expense balance for employee (\d+)", q_lower)
+    if expense_match:
+        employee_id = int(expense_match.group(1))
         return {
             "name": "get_expense_balance",
             "arguments": json.dumps({"employee_id": employee_id})
         }
 
     # 4️⃣ Performance Bonus
-    match = re.search(r"performance bonus for employee (\d+) for (\d{4})", q_lower)
-    if match:
-        employee_id = int(match.group(1))
-        current_year = int(match.group(2))
+    bonus_match = re.search(r"performance bonus for employee (\d+) for (\d{4})", q_lower)
+    if bonus_match:
+        employee_id = int(bonus_match.group(1))
+        current_year = int(bonus_match.group(2))
         return {
             "name": "calculate_performance_bonus",
             "arguments": json.dumps({
@@ -74,14 +85,14 @@ def execute(q: str = Query(..., description="Query text from employee")):
         }
 
     # 5️⃣ Office Issue Reporting
-    match = re.search(
+    issue_match = re.search(
         r"office issue (\d+).*?(?:in|for the)\s+([a-zA-Z ]+?)\s+department",
         q_original,
         flags=re.IGNORECASE
     )
-    if match:
-        issue_code = int(match.group(1))
-        department = normalize_department(match.group(2))
+    if issue_match:
+        issue_code = int(issue_match.group(1))
+        department = normalize_department(issue_match.group(2))
         return {
             "name": "report_office_issue",
             "arguments": json.dumps({
@@ -90,5 +101,5 @@ def execute(q: str = Query(..., description="Query text from employee")):
             })
         }
 
-    # ❌ If no match found
+    # ❌ Default fallback
     return {"error": "Query not recognized. Please use a supported template."}
